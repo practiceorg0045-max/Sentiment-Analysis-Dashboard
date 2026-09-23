@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Sentiment Analysis Dashboard</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+
+        <div class="logo">
+            <div class="logo-icon">S</div>
+            <div>
+                <h2>SentimentAI</h2>
+                <span>Analysis Dashboard</span>
+            </div>
+        </div>
+
+        <nav class="navigation">
+
+            <a href="#" class="nav-item active">
+                <span>📊</span>
+                Dashboard
+            </a>
+
+            <a href="#analyze" class="nav-item">
+                <span>🧠</span>
+                Analyze Text
+            </a>
+
+            <a href="#analytics" class="nav-item">
+                <span>📈</span>
+                Analytics
+            </a>
+
+            <a href="#history" class="nav-item">
+                <span>📜</span>
+                History
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <button id="themeToggle" class="theme-button">
+                🌙 Dark Mode
+            </button>
+
+        </div>
+
+    </aside>
+
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+        <!-- Top Header -->
+        <header class="top-header">
+
+            <div>
+                <p class="welcome-text">Welcome back 👋</p>
+                <h1>Sentiment Dashboard</h1>
+            </div>
+
+            <div class="profile">
+                <div class="profile-avatar">U</div>
+
+                <div>
+                    <strong>User</strong>
+                    <span>Analyzer</span>
+                </div>
+            </div>
+
+        </header>
+
+
+        <!-- Statistics -->
+        <section class="stats-grid">
+
+            <div class="stat-card">
+
+                <div class="stat-icon blue">
+                    📊
+                </div>
+
+                <div>
+                    <p>Total Analyses</p>
+                    <h2 id="totalCount">0</h2>
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon green">
+                    😊
+                </div>
+
+                <div>
+                    <p>Positive</p>
+                    <h2 id="positiveCount">0</h2>
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon red">
+                    😡
+                </div>
+
+                <div>
+                    <p>Negative</p>
+                    <h2 id="negativeCount">0</h2>
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon yellow">
+                    😐
+                </div>
+
+                <div>
+                    <p>Neutral</p>
+                    <h2 id="neutralCount">0</h2>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- Analyze Section -->
+        <section class="analysis-section" id="analyze">
+
+            <div class="section-heading">
+
+                <div>
+                    <p class="section-label">AI SENTIMENT ANALYSIS</p>
+
+                    <h2>Analyze Your Text</h2>
+
+                    <p>
+                        Enter a review, comment, or any text to analyze
+                        its sentiment.
+                    </p>
+                </div>
+
+            </div>
+
+
+            <div class="analysis-card">
+
+                <textarea
+                    id="textInput"
+                    placeholder="Type or paste your text here..."
+                ></textarea>
+
+
+                <div class="analysis-actions">
+
+                    <span id="characterCount">
+                        0 characters
+                    </span>
+
+                    <button id="analyzeButton">
+                        Analyze Sentiment →
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- Result -->
+            <div class="result-card hidden" id="resultCard">
+
+                <div class="result-icon" id="resultIcon">
+                    😊
+                </div>
+
+                <div class="result-content">
+
+                    <p class="result-label">
+                        SENTIMENT RESULT
+                    </p>
+
+                    <h2 id="resultText">
+                        Positive
+                    </h2>
+
+                    <p id="resultDescription">
+                        Your text has a positive sentiment.
+                    </p>
+
+                </div>
+
+
+                <div class="confidence">
+
+                    <p>Confidence</p>
+
+                    <h2 id="confidenceValue">
+                        0%
+                    </h2>
+
+                    <div class="confidence-bar">
+
+                        <div
+                            class="confidence-progress"
+                            id="confidenceProgress">
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- Analytics -->
+        <section class="analytics-section" id="analytics">
+
+            <div class="section-heading">
+
+                <div>
+                    <p class="section-label">INSIGHTS</p>
+
+                    <h2>Sentiment Analytics</h2>
+
+                    <p>
+                        Overview of your analyzed text.
+                    </p>
+                </div>
+
+            </div>
+
+
+            <div class="analytics-grid">
+
+                <div class="chart-card">
+
+                    <h3>Sentiment Distribution</h3>
+
+                    <div class="chart-container">
+
+                        <div class="donut-chart">
+
+                            <div class="donut-center">
+
+                                <strong id="chartTotal">
+                                    0
+                                </strong>
+
+                                <span>Analyses</span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="chart-legend">
+
+                        <div>
+                            <span class="legend-dot positive-dot"></span>
+                            Positive
+                        </div>
+
+                        <div>
+                            <span class="legend-dot negative-dot"></span>
+                            Negative
+                        </div>
+
+                        <div>
+                            <span class="legend-dot neutral-dot"></span>
+                            Neutral
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="overview-card">
+
+                    <h3>Sentiment Overview</h3>
+
+                    <div class="overview-item">
+
+                        <div>
+                            <span>😊 Positive</span>
+                        </div>
+
+                        <strong id="positivePercentage">
+                            0%
+                        </strong>
+
+                    </div>
+
+
+                    <div class="overview-item">
+
+                        <div>
+                            <span>😡 Negative</span>
+                        </div>
+
+                        <strong id="negativePercentage">
+                            0%
+                        </strong>
+
+                    </div>
+
+
+                    <div class="overview-item">
+
+                        <div>
+                            <span>😐 Neutral</span>
+                        </div>
+
+                        <strong id="neutralPercentage">
+                            0%
+                        </strong>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- History -->
+        <section class="history-section" id="history">
+
+            <div class="section-heading">
+
+                <div>
+
+                    <p class="section-label">RECENT ACTIVITY</p>
+
+                    <h2>Analysis History</h2>
+
+                    <p>
+                        Your recently analyzed texts.
+                    </p>
+
+                </div>
+
+                <button id="clearHistory" class="clear-button">
+                    Clear History
+                </button>
+
+            </div>
+
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+                            <th>Text</th>
+                            <th>Sentiment</th>
+                            <th>Confidence</th>
+                            <th>Time</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="historyTable">
+
+                        <tr class="empty-row">
+
+                            <td colspan="4">
+                                No analysis yet.
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <!-- Footer -->
+        <footer>
+
+            <p>
+                SentimentAI Dashboard © 2026
+            </p>
+
+            <p>
+                Sentiment Analysis Project
+            </p>
+
+        </footer>
+
+    </main>
+
+
+    <script src="script.js"></script>
+
+</body>
+</html>
