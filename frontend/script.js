@@ -1,674 +1,541 @@
-// ================================
-// SENTIMENT ANALYSIS DASHBOARD
-// ================================
 
+"use strict";
 
-// -------------------------------
-// DOM ELEMENTS
-// -------------------------------
+// ==========================================
+// SENTIMENTAI - FRONTEND APPLICATION
+// ==========================================
 
-const textInput = document.getElementById("textInput");
-const analyzeButton = document.getElementById("analyzeButton");
-const characterCount = document.getElementById("characterCount");
+const $ = (id) => document.getElementById(id);
 
-const resultCard = document.getElementById("resultCard");
-const resultIcon = document.getElementById("resultIcon");
-const resultText = document.getElementById("resultText");
-const resultDescription = document.getElementById("resultDescription");
+const elements = {
+    text: $("textInput"),
+    analyze: $("analyzeButton"),
+    clearInput: $("clearInput"),
+    count: $("characterCount"),
+    result: $("resultCard"),
+    icon: $("resultIcon"),
+    resultText: $("resultText"),
+    description: $("resultDescription"),
+    score: $("scoreValue"),
+    error: $("errorMessage"),
+    history: $("historyTable"),
+    empty: $("emptyState"),
+    search: $("searchInput"),
+    filter: $("filterSelect"),
+    theme: $("themeToggle"),
+    themeIcon: $("themeIcon"),
+    themeLabel: $("themeLabel"),
+    sidebar: $("sidebar"),
+    menu: $("menuToggle")
+};
 
-const confidenceValue = document.getElementById("confidenceValue");
-const confidenceProgress = document.getElementById("confidenceProgress");
+// Word lists are intentionally simple and editable.
+// This is rule-based sentiment scoring, not trained ML.
+const positiveWords = new Set([
+    "good", "great", "amazing", "excellent", "awesome",
+    "love", "loved", "lovely", "like", "liked", "happy",
+    "wonderful", "fantastic", "best", "beautiful", "perfect",
+    "nice", "enjoy", "enjoyed", "brilliant", "interesting",
+    "impressive", "helpful", "delightful", "recommend", "superb",
+    "enjoyable", "cool", "fun", "favorite", "favourite",
+    "outstanding", "incredible", "easy", "smooth", "satisfied",
+    "success", "successful", "fast", "friendly", "thankful",
+    "thank", "thanks", "excited", "pleasant", "reliable"
+]);
 
-const totalCount = document.getElementById("totalCount");
-const positiveCount = document.getElementById("positiveCount");
-const negativeCount = document.getElementById("negativeCount");
-const neutralCount = document.getElementById("neutralCount");
+const negativeWords = new Set([
+    "bad", "terrible", "horrible", "awful", "hate", "hated",
+    "boring", "worst", "poor", "sad", "disappointing",
+    "disappointed", "ugly", "waste", "annoying", "slow",
+    "problem", "problems", "useless", "dislike", "broken",
+    "fail", "failed", "failure", "difficult", "confusing",
+    "expensive", "rude", "angry", "frustrating", "frustrated",
+    "defective", "damage", "damaged", "painful", "weak",
+    "unhappy", "unpleasant", "horrible", "mess", "regret",
+    "disaster", "disgusting", "unreliable", "late", "dirty",
+    "inferior", "annoyed", "dislike", "disliked"
+]);
 
-const chartTotal = document.getElementById("chartTotal");
+const negators = new Set([
+    "not", "no", "never", "neither", "hardly", "barely",
+    "isn't", "wasn't", "weren't", "don't", "doesn't",
+    "didn't", "can't", "couldn't", "won't", "wouldn't",
+    "shouldn't", "cannot", "without"
+]);
 
-const positivePercentage =
-    document.getElementById("positivePercentage");
+const intensifiers = new Set([
+    "very", "really", "extremely", "absolutely",
+    "incredibly", "so", "truly", "highly"
+]);
 
-const negativePercentage =
-    document.getElementById("negativePercentage");
+const diminishers = new Set([
+    "slightly", "somewhat", "little", "fairly", "rather"
+]);
 
-const neutralPercentage =
-    document.getElementById("neutralPercentage");
+// Load saved data safely.
+function loadAnalyses() {
+    try {
+        const saved = JSON.parse(
+            localStorage.getItem("sentimentAnalyses") || "[]"
+        );
 
-const historyTable =
-    document.getElementById("historyTable");
+        if (!Array.isArray(saved)) return [];
 
-const clearHistory =
-    document.getElementById("clearHistory");
-
-const themeToggle =
-    document.getElementById("themeToggle");
-
-
-// -------------------------------
-// SENTIMENT WORD LIST
-// -------------------------------
-
-const positiveWords = [
-    "good",
-    "great",
-    "amazing",
-    "excellent",
-    "awesome",
-    "love",
-    "loved",
-    "like",
-    "liked",
-    "happy",
-    "wonderful",
-    "fantastic",
-    "best",
-    "beautiful",
-    "perfect",
-    "nice",
-    "enjoy",
-    "enjoyed",
-    "brilliant",
-    "interesting"
-];
-
-
-const negativeWords = [
-    "bad",
-    "terrible",
-    "horrible",
-    "awful",
-    "hate",
-    "hated",
-    "boring",
-    "worst",
-    "poor",
-    "sad",
-    "disappointing",
-    "disappointed",
-    "ugly",
-    "waste",
-    "annoying",
-    "slow",
-    "problem",
-    "problems",
-    "useless",
-    "dislike"
-];
-
-
-// -------------------------------
-// LOAD DATA
-// -------------------------------
-
-let analyses =
-    JSON.parse(localStorage.getItem("sentimentAnalyses")) || [];
-
-
-// -------------------------------
-// CHARACTER COUNT
-// -------------------------------
-
-textInput.addEventListener("input", () => {
-
-    const length = textInput.value.length;
-
-    characterCount.textContent =
-        `${length} characters`;
-
-});
-
-
-// -------------------------------
-// ANALYZE TEXT
-// -------------------------------
-
-analyzeButton.addEventListener("click", analyzeText);
-
-
-function analyzeText() {
-
-    const text = textInput.value.trim();
-
-    if (text === "") {
-
-        alert("Please enter some text first.");
-
-        return;
+        return saved.filter(item =>
+            item &&
+            typeof item.text === "string" &&
+            ["Positive", "Negative", "Neutral"].includes(item.sentiment)
+        );
+    } catch {
+        return [];
     }
-
-
-    const words = text
-        .toLowerCase()
-        .replace(/[^\w\s]/g, "")
-        .split(/\s+/);
-
-
-    let positiveScore = 0;
-    let negativeScore = 0;
-
-
-    words.forEach(word => {
-
-        if (positiveWords.includes(word)) {
-            positiveScore++;
-        }
-
-        if (negativeWords.includes(word)) {
-            negativeScore++;
-        }
-
-    });
-
-
-    let sentiment;
-    let confidence;
-
-
-    if (
-        positiveScore === 0 &&
-        negativeScore === 0
-    ) {
-
-        sentiment = "Neutral";
-        confidence = 70;
-
-    }
-
-    else if (
-        positiveScore > negativeScore
-    ) {
-
-        sentiment = "Positive";
-
-        confidence =
-            Math.min(
-                95,
-                70 + (positiveScore * 8)
-            );
-
-    }
-
-    else if (
-        negativeScore > positiveScore
-    ) {
-
-        sentiment = "Negative";
-
-        confidence =
-            Math.min(
-                95,
-                70 + (negativeScore * 8)
-            );
-
-    }
-
-    else {
-
-        sentiment = "Neutral";
-        confidence = 65;
-
-    }
-
-
-    showResult(
-        sentiment,
-        confidence
-    );
-
-
-    saveAnalysis(
-        text,
-        sentiment,
-        confidence
-    );
-
-
-    updateDashboard();
-
 }
 
+let analyses = loadAnalyses();
 
-// -------------------------------
-// SHOW RESULT
-// -------------------------------
-
-function showResult(
-    sentiment,
-    confidence
-) {
-
-    resultCard.classList.remove("hidden");
-
-    confidenceValue.textContent =
-        `${confidence}%`;
-
-    confidenceProgress.style.width =
-        `${confidence}%`;
-
-
-    if (sentiment === "Positive") {
-
-        resultIcon.textContent = "😊";
-
-        resultText.textContent =
-            "Positive";
-
-        resultDescription.textContent =
-            "Your text expresses a positive sentiment.";
-
-        confidenceProgress.style.background =
-            "#22c55e";
-
+function saveAnalyses() {
+    try {
+        localStorage.setItem(
+            "sentimentAnalyses",
+            JSON.stringify(analyses)
+        );
+        return true;
+    } catch {
+        alert("Browser storage is unavailable. Your results may not persist after refresh.");
+        return false;
     }
-
-
-    else if (sentiment === "Negative") {
-
-        resultIcon.textContent = "😡";
-
-        resultText.textContent =
-            "Negative";
-
-        resultDescription.textContent =
-            "Your text expresses a negative sentiment.";
-
-        confidenceProgress.style.background =
-            "#ef4444";
-
-    }
-
-
-    else {
-
-        resultIcon.textContent = "😐";
-
-        resultText.textContent =
-            "Neutral";
-
-        resultDescription.textContent =
-            "Your text appears to have a neutral sentiment.";
-
-        confidenceProgress.style.background =
-            "#f59e0b";
-
-    }
-
 }
 
+// ==========================================
+// SENTIMENT ANALYSIS
+// ==========================================
 
-// -------------------------------
-// SAVE ANALYSIS
-// -------------------------------
+function analyzeSentiment(text) {
+    // Keep contractions together; normalize punctuation.
+    const words = text.toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g) || [];
 
-function saveAnalysis(
-    text,
-    sentiment,
-    confidence
-) {
+    let score = 0;
+    let positiveMatches = 0;
+    let negativeMatches = 0;
 
-    const analysis = {
+    for (let i = 0; i < words.length; i++) {
+        const word = words[i];
 
-        text: text,
+        let value = positiveWords.has(word) ? 1 :
+                    negativeWords.has(word) ? -1 : 0;
 
-        sentiment: sentiment,
+        if (value === 0) continue;
 
-        confidence: confidence,
+        // A simple rule for nearby negation, e.g. "not good".
+        const previous = words.slice(Math.max(0, i - 3), i);
+        const negated = previous.some(w => negators.has(w));
 
-        time: new Date().toLocaleString()
+        if (negated) value *= -1;
 
+        // Nearby intensity words affect the score slightly.
+        const intensified = previous.some(w => intensifiers.has(w));
+        const diminished = previous.some(w => diminishers.has(w));
+
+        if (intensified) value *= 1.5;
+        if (diminished) value *= 0.5;
+
+        score += value;
+
+        if (value > 0) positiveMatches++;
+        if (value < 0) negativeMatches++;
+    }
+
+    let sentiment = "Neutral";
+
+    if (score > 0) sentiment = "Positive";
+    if (score < 0) sentiment = "Negative";
+
+    // No matched words means the result is neutral by default.
+    // This is not a statistical confidence probability.
+    return {
+        sentiment,
+        score: Math.round(score * 10) / 10,
+        positiveMatches,
+        negativeMatches
+    };
+}
+
+// ==========================================
+// RESULT DISPLAY
+// ==========================================
+
+function displayResult(result) {
+    elements.result.classList.remove("hidden");
+
+    const settings = {
+        Positive: {
+            icon: "😊",
+            title: "Positive sentiment",
+            description: "The text contains more positive than negative word matches."
+        },
+        Negative: {
+            icon: "☹️",
+            title: "Negative sentiment",
+            description: "The text contains more negative than positive word matches."
+        },
+        Neutral: {
+            icon: "😐",
+            title: "Neutral sentiment",
+            description: "No clear positive or negative direction was found by the rules."
+        }
     };
 
+    const info = settings[result.sentiment];
 
-    analyses.unshift(analysis);
+    elements.icon.textContent = info.icon;
+    elements.resultText.textContent = info.title;
+    elements.description.textContent = info.description;
 
+    elements.score.textContent =
+        result.score > 0 ? `+${result.score}` : String(result.score);
 
-    localStorage.setItem(
-        "sentimentAnalyses",
-        JSON.stringify(analyses)
-    );
-
+    elements.score.style.color =
+        result.sentiment === "Positive" ? "var(--green)" :
+        result.sentiment === "Negative" ? "var(--red)" :
+        "var(--text)";
 }
 
+// ==========================================
+// ANALYZE BUTTON
+// ==========================================
 
-// -------------------------------
-// UPDATE DASHBOARD
-// -------------------------------
+function analyzeText() {
+    const text = elements.text.value.trim();
 
-function updateDashboard() {
-
-    const total =
-        analyses.length;
-
-
-    const positive =
-        analyses.filter(
-            item => item.sentiment === "Positive"
-        ).length;
-
-
-    const negative =
-        analyses.filter(
-            item => item.sentiment === "Negative"
-        ).length;
-
-
-    const neutral =
-        analyses.filter(
-            item => item.sentiment === "Neutral"
-        ).length;
-
-
-    totalCount.textContent =
-        total;
-
-    positiveCount.textContent =
-        positive;
-
-    negativeCount.textContent =
-        negative;
-
-    neutralCount.textContent =
-        neutral;
-
-    chartTotal.textContent =
-        total;
-
-
-    if (total > 0) {
-
-        const positivePercent =
-            Math.round(
-                (positive / total) * 100
-            );
-
-        const negativePercent =
-            Math.round(
-                (negative / total) * 100
-            );
-
-        const neutralPercent =
-            Math.round(
-                (neutral / total) * 100
-            );
-
-
-        positivePercentage.textContent =
-            `${positivePercent}%`;
-
-        negativePercentage.textContent =
-            `${negativePercent}%`;
-
-        neutralPercentage.textContent =
-            `${neutralPercent}%`;
-
-
-        updateDonutChart(
-            positivePercent,
-            negativePercent,
-            neutralPercent
-        );
-
-    }
-
-    else {
-
-        positivePercentage.textContent =
-            "0%";
-
-        negativePercentage.textContent =
-            "0%";
-
-        neutralPercentage.textContent =
-            "0%";
-
-        updateDonutChart(0, 0, 100);
-
-    }
-
-
-    updateHistory();
-
-}
-
-
-// -------------------------------
-// UPDATE DONUT CHART
-// -------------------------------
-
-function updateDonutChart(
-    positive,
-    negative,
-    neutral
-) {
-
-    const positiveEnd =
-        positive;
-
-    const negativeEnd =
-        positive + negative;
-
-
-    const donut =
-        document.querySelector(".donut-chart");
-
-
-    donut.style.background =
-        `conic-gradient(
-            #22c55e 0% ${positiveEnd}%,
-            #ef4444 ${positiveEnd}% ${negativeEnd}%,
-            #f59e0b ${negativeEnd}% 100%
-        )`;
-
-}
-
-
-// -------------------------------
-// UPDATE HISTORY
-// -------------------------------
-
-function updateHistory() {
-
-    if (analyses.length === 0) {
-
-        historyTable.innerHTML = `
-
-            <tr class="empty-row">
-
-                <td colspan="4">
-                    No analysis yet.
-                </td>
-
-            </tr>
-
-        `;
-
+    if (!text) {
+        elements.error.textContent = "Please enter some text first.";
+        elements.error.classList.remove("hidden");
+        elements.text.focus();
         return;
     }
 
+    elements.error.classList.add("hidden");
 
-    historyTable.innerHTML = "";
+    const result = analyzeSentiment(text);
 
+    displayResult(result);
 
-    analyses.slice(0, 10).forEach(
-        analysis => {
+    const record = {
+        id: Date.now() + "-" + Math.random().toString(36).slice(2, 8),
+        text,
+        sentiment: result.sentiment,
+        score: result.score,
+        time: new Date().toISOString()
+    };
 
-            let emoji;
+    analyses.unshift(record);
 
+    // Keep browser storage manageable.
+    analyses = analyses.slice(0, 500);
 
-            if (
-                analysis.sentiment === "Positive"
-            ) {
+    saveAnalyses();
+    updateDashboard();
 
-                emoji = "😊";
-
-            }
-
-            else if (
-                analysis.sentiment === "Negative"
-            ) {
-
-                emoji = "😡";
-
-            }
-
-            else {
-
-                emoji = "😐";
-
-            }
-
-
-            const row =
-                document.createElement("tr");
-
-
-            row.innerHTML = `
-
-                <td>
-                    ${escapeHTML(
-                        shortenText(
-                            analysis.text,
-                            55
-                        )
-                    )}
-                </td>
-
-                <td>
-                    ${emoji} ${analysis.sentiment}
-                </td>
-
-                <td>
-                    ${analysis.confidence}%
-                </td>
-
-                <td>
-                    ${analysis.time}
-                </td>
-
-            `;
-
-
-            historyTable.appendChild(row);
-
-        }
-    );
-
+    // Give visual feedback without a disruptive popup.
+    elements.analyze.innerHTML = "Analyzed ✓";
+    setTimeout(() => {
+        elements.analyze.innerHTML = 'Analyze sentiment <span>→</span>';
+    }, 900);
 }
 
+elements.analyze.addEventListener("click", analyzeText);
 
-// -------------------------------
-// SHORTEN TEXT
-// -------------------------------
-
-function shortenText(
-    text,
-    maxLength
-) {
-
-    if (text.length <= maxLength) {
-
-        return text;
-
+elements.text.addEventListener("keydown", event => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        analyzeText();
     }
+});
 
+// Character counter.
+elements.text.addEventListener("input", () => {
+    elements.count.textContent =
+        `${elements.text.value.length} / 5000 characters`;
+    elements.error.classList.add("hidden");
+});
 
-    return (
-        text.substring(0, maxLength)
-        + "..."
+// Clear input.
+elements.clearInput.addEventListener("click", () => {
+    elements.text.value = "";
+    elements.count.textContent = "0 / 5000 characters";
+    elements.error.classList.add("hidden");
+    elements.text.focus();
+});
+
+// Sample text buttons.
+document.querySelectorAll("[data-sample]").forEach(button => {
+    button.addEventListener("click", () => {
+        elements.text.value = button.dataset.sample;
+        elements.count.textContent =
+            `${elements.text.value.length} / 5000 characters`;
+        elements.error.classList.add("hidden");
+        elements.text.focus();
+    });
+});
+
+// ==========================================
+// DASHBOARD STATISTICS AND CHARTS
+// ==========================================
+
+function updateDashboard() {
+    const counts = {
+        Positive: 0,
+        Negative: 0,
+        Neutral: 0
+    };
+
+    analyses.forEach(item => {
+        counts[item.sentiment]++;
+    });
+
+    const total = analyses.length;
+
+    $("totalCount").textContent = total;
+    $("positiveCount").textContent = counts.Positive;
+    $("negativeCount").textContent = counts.Negative;
+    $("neutralCount").textContent = counts.Neutral;
+    $("chartTotal").textContent = total;
+
+    const percentage = value =>
+        total ? Math.round(value / total * 100) : 0;
+
+    $("positivePercentage").textContent = percentage(counts.Positive) + "%";
+    $("negativePercentage").textContent = percentage(counts.Negative) + "%";
+    $("neutralPercentage").textContent = percentage(counts.Neutral) + "%";
+
+    const positiveShare = total ? counts.Positive / total * 100 : 0;
+    const negativeEnd = total
+        ? (counts.Positive + counts.Negative) / total * 100
+        : 0;
+
+    const donut = $("donutChart");
+
+    donut.style.setProperty("--positive-share", `${positiveShare}%`);
+    donut.style.setProperty("--negative-end", `${negativeEnd}%`);
+    donut.setAttribute(
+        "aria-label",
+        `Positive ${counts.Positive}, negative ${counts.Negative}, neutral ${counts.Neutral}`
     );
 
+    const maxCount = Math.max(
+        counts.Positive,
+        counts.Negative,
+        counts.Neutral,
+        1
+    );
+
+    [
+        ["Positive", counts.Positive, "positiveBar", "positiveBarValue"],
+        ["Negative", counts.Negative, "negativeBar", "negativeBarValue"],
+        ["Neutral", counts.Neutral, "neutralBar", "neutralBarValue"]
+    ].forEach(([, value, barId, valueId]) => {
+        $(valueId).textContent = value;
+        $(barId).style.width = `${value / maxCount * 100}%`;
+    });
+
+    renderHistory();
 }
 
+// ==========================================
+// HISTORY TABLE
+// ==========================================
 
-// -------------------------------
-// SECURITY
-// -------------------------------
+function formatDate(isoDate) {
+    const date = new Date(isoDate);
 
-function escapeHTML(text) {
+    if (Number.isNaN(date.getTime())) return "Unknown date";
 
-    const div =
-        document.createElement("div");
-
-    div.textContent = text;
-
-    return div.innerHTML;
-
+    return date.toLocaleString([], {
+        dateStyle: "medium",
+        timeStyle: "short"
+    });
 }
 
+function shortenText(text, maxLength = 85) {
+    return text.length > maxLength
+        ? text.slice(0, maxLength) + "…"
+        : text;
+}
 
-// -------------------------------
+function renderHistory() {
+    const query = elements.search.value.trim().toLowerCase();
+    const filter = elements.filter.value;
+
+    const filtered = analyses.filter(item => {
+        const matchesText = item.text.toLowerCase().includes(query);
+        const matchesSentiment = filter === "All" || item.sentiment === filter;
+        return matchesText && matchesSentiment;
+    });
+
+    elements.history.replaceChildren();
+
+    filtered.slice(0, 100).forEach(item => {
+        const row = document.createElement("tr");
+
+        const textCell = document.createElement("td");
+        textCell.textContent = shortenText(item.text);
+        textCell.title = item.text;
+
+        const sentimentCell = document.createElement("td");
+        const badge = document.createElement("span");
+        badge.className = `sentiment-badge badge-${item.sentiment.toLowerCase()}`;
+
+        const icon = {
+            Positive: "😊",
+            Negative: "☹️",
+            Neutral: "😐"
+        }[item.sentiment];
+
+        badge.textContent = `${icon} ${item.sentiment}`;
+        sentimentCell.appendChild(badge);
+
+        const scoreCell = document.createElement("td");
+        const score = Number(item.score) || 0;
+        scoreCell.textContent = score > 0 ? `+${score}` : String(score);
+
+        const dateCell = document.createElement("td");
+        dateCell.textContent = formatDate(item.time);
+
+        row.append(textCell, sentimentCell, scoreCell, dateCell);
+        elements.history.appendChild(row);
+    });
+
+    elements.empty.classList.toggle("hidden", filtered.length !== 0);
+
+    if (filtered.length === 0) {
+        const p = elements.empty.querySelector("p");
+        const strong = elements.empty.querySelector("strong");
+
+        if (analyses.length > 0) {
+            strong.textContent = "No matching results";
+            p.textContent = "Try another search or sentiment filter.";
+        } else {
+            strong.textContent = "No analyses yet";
+            p.textContent = "Analyze your first text to see your history here.";
+        }
+    }
+}
+
+elements.search.addEventListener("input", renderHistory);
+elements.filter.addEventListener("change", renderHistory);
+
+// ==========================================
 // CLEAR HISTORY
-// -------------------------------
+// ==========================================
 
-clearHistory.addEventListener(
-    "click",
-    () => {
-
-        if (analyses.length === 0) {
-
-            return;
-
-        }
-
-
-        const confirmDelete =
-            confirm(
-                "Are you sure you want to clear all history?"
-            );
-
-
-        if (confirmDelete) {
-
-            analyses = [];
-
-            localStorage.removeItem(
-                "sentimentAnalyses"
-            );
-
-            updateDashboard();
-
-        }
-
+$("clearHistory").addEventListener("click", () => {
+    if (!analyses.length) {
+        alert("Your history is already empty.");
+        return;
     }
-);
 
+    if (!confirm("Delete all saved analyses from this browser?")) return;
 
-// -------------------------------
+    analyses = [];
+    saveAnalyses();
+    elements.result.classList.add("hidden");
+    updateDashboard();
+});
+
+// ==========================================
+// EXPORT HISTORY TO CSV
+// ==========================================
+
+$("exportButton").addEventListener("click", () => {
+    if (!analyses.length) {
+        alert("Analyze some text before exporting your history.");
+        return;
+    }
+
+    const quote = value =>
+        '"' + String(value ?? "").replace(/"/g, '""') + '"';
+
+    const rows = [
+        ["Text", "Sentiment", "Score", "Date"],
+        ...analyses.map(item => [
+            item.text,
+            item.sentiment,
+            item.score,
+            formatDate(item.time)
+        ])
+    ];
+
+    const csv = "\uFEFF" + rows
+        .map(row => row.map(quote).join(","))
+        .join("\r\n");
+
+    const blob = new Blob([csv], {
+        type: "text/csv;charset=utf-8;"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "sentiment-analysis-history.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+});
+
+// ==========================================
 // DARK MODE
-// -------------------------------
+// ==========================================
 
-themeToggle.addEventListener(
-    "click",
-    () => {
+function setTheme(isDark) {
+    document.body.classList.toggle("dark", isDark);
+    elements.themeIcon.textContent = isDark ? "☀" : "☾";
+    elements.themeLabel.textContent = isDark ? "Light appearance" : "Dark appearance";
 
-        document.body.classList.toggle(
-            "dark"
-        );
-
-
-        if (
-            document.body.classList.contains("dark")
-        ) {
-
-            themeToggle.textContent =
-                "☀️ Light Mode";
-
-        }
-
-        else {
-
-            themeToggle.textContent =
-                "🌙 Dark Mode";
-
-        }
-
+    try {
+        localStorage.setItem("sentimentTheme", isDark ? "dark" : "light");
+    } catch {
+        // Theme still works for the current page.
     }
-);
+}
 
+try {
+    setTheme(localStorage.getItem("sentimentTheme") === "dark");
+} catch {
+    setTheme(false);
+}
 
-// -------------------------------
-// INITIAL LOAD
-// -------------------------------
+elements.theme.addEventListener("click", () => {
+    setTheme(!document.body.classList.contains("dark"));
+});
 
+// ==========================================
+// MOBILE NAVIGATION
+// ==========================================
+
+elements.menu.addEventListener("click", () => {
+    const isOpen = elements.sidebar.classList.toggle("open");
+    elements.menu.setAttribute("aria-expanded", String(isOpen));
+});
+
+document.querySelectorAll(".nav-link, .brand, .help-card a").forEach(link => {
+    link.addEventListener("click", () => {
+        elements.sidebar.classList.remove("open");
+        elements.menu.setAttribute("aria-expanded", "false");
+    });
+});
+
+// Highlight the active navigation link.
+document.querySelectorAll(".nav-link").forEach(link => {
+    link.addEventListener("click", () => {
+        document.querySelectorAll(".nav-link").forEach(item => {
+            item.classList.remove("active");
+        });
+
+        link.classList.add("active");
+    });
+});
+
+// Restore the dashboard on page load.
 updateDashboard();
